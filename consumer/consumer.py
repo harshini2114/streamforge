@@ -10,5 +10,8 @@ consumer = KafkaConsumer(
 
 print("Listening for truck telemetry...")
 
+message_count = 0
+
 for message in consumer:
-    print(message.value.decode("utf-8"))
+    message_count += 1
+    print(f"Message {message_count}: {message.value.decode('utf-8')}")
