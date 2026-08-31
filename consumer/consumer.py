@@ -1,3 +1,5 @@
+import json
+
 from kafka import KafkaConsumer
 
 consumer = KafkaConsumer(
@@ -14,4 +16,28 @@ message_count = 0
 
 for message in consumer:
     message_count += 1
-    print(f"Message {message_count}: {message.value.decode('utf-8')}")
+
+    try:
+        telemetry = json.loads(message.value.decode("utf-8"))
+
+        required_fields = [
+            "truck_id",
+            "speed",
+            "latitude",
+            "longitude",
+            "timestamp"
+        ]
+
+        if not all(field in telemetry for field in required_fields):
+            print(f"Invalid telemetry message {message_count}: missing fields")
+            continue
+
+        print(f"\nMessage {message_count}")
+        print(f"Truck ID : {telemetry['truck_id']}")
+        print(f"Speed    : {telemetry['speed']} km/h")
+        print(f"Latitude : {telemetry['latitude']}")
+        print(f"Longitude: {telemetry['longitude']}")
+        print(f"Timestamp: {telemetry['timestamp']}")
+
+    except (json.JSONDecodeError, KeyError) as error:
+        print(f"Invalid telemetry message {message_count}: {error}")
