@@ -35,9 +35,15 @@ for message in consumer:
         print(f"\nMessage {message_count}")
         print(f"Truck ID : {telemetry['truck_id']}")
         print(f"Speed    : {telemetry['speed']} km/h")
+
+        if telemetry["speed"] > 80:
+            print("ALERT: Truck is overspeeding!")
+        else:
+            print("Speed is normal")
+
         print(f"Latitude : {telemetry['latitude']}")
         print(f"Longitude: {telemetry['longitude']}")
         print(f"Timestamp: {telemetry['timestamp']}")
 
     except (json.JSONDecodeError, KeyError) as error:
-        print(f"Invalid telemetry message {message_count}: {error}")
+        print(f"Invalid telemetry message: {error}")
