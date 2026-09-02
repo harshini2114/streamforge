@@ -1,4 +1,5 @@
 import json
+from processor.alert_processor import process_alert
 
 from kafka import KafkaConsumer
 
@@ -36,10 +37,7 @@ for message in consumer:
         print(f"Truck ID : {telemetry['truck_id']}")
         print(f"Speed    : {telemetry['speed']} km/h")
 
-        if telemetry["speed"] > 80:
-            print("ALERT: Truck is overspeeding!")
-        else:
-            print("Speed is normal")
+        process_alert(telemetry)
 
         print(f"Latitude : {telemetry['latitude']}")
         print(f"Longitude: {telemetry['longitude']}")
