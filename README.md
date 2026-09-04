@@ -1,44 +1,24 @@
-﻿# Stream Forge
-# StreamForge 🚛📡
+﻿## Week 2 – Real-Time Alert Processing
 
-StreamForge is a real-time truck telemetry streaming system built using Python and Apache Kafka.
+Week 2 extends the StreamForge pipeline with real-time overspeed detection and structured alert logging.
 
-## Project Overview
+### Alert Processing Flow
 
-StreamForge simulates truck telemetry data and streams it through Apache Kafka for real-time processing.
+Producer → Kafka → Consumer → Validation → Alert Processor → Overspeed Alert → alerts.json
 
-The system generates truck information such as:
+### Week 2 Features
 
-- Truck ID
-- Speed
-- Latitude
-- Longitude
-- Timestamp
+- Real-time overspeed detection
+- Speed threshold: 80 km/h
+- Structured JSON alert generation
+- Truck ID, speed, threshold, and timestamp
+- Alert persistence in `alerts.json`
+- Modular alert processing using `processor/alert_processor.py`
 
-The consumer reads the telemetry from Kafka, parses the JSON data, validates required fields, and detects overspeeding trucks.
+### Week 2 Status
 
-## Architecture
-
-Producer → Kafka → truck-telemetry → Consumer → Validation → Overspeed Detection
-
-## Technologies
-
-- Python
-- Apache Kafka
-- kafka-python
-- JSON
-- Git & GitHub
-
-## Project Structure
-
-```text
-streamforge/
-│
-├── producer/
-│   └── producer.py
-│
-├── consumer/
-│   └── consumer.py
-│
-├── README.md
-└── requirements.txt
+- [x] Alert Processor
+- [x] Overspeed Detection
+- [x] Structured Alert Output
+- [x] Alert Logging
+- [x] End-to-End Kafka Pipeline Testing
