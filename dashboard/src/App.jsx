@@ -10,8 +10,8 @@ import {
   Radio,
   Server,
   Settings,
-  ShieldCheck,
-  Zap,
+  ShieldAlert,
+  Wifi,
 } from "lucide-react";
 
 import {
@@ -19,480 +19,478 @@ import {
   Background,
   Controls,
   MiniMap,
-  addEdge,
-  useNodesState,
-  useEdgesState,
-  Position,
+  MarkerType,
 } from "@xyflow/react";
 
 import "@xyflow/react/dist/style.css";
 import "./App.css";
 
-const initialNodes = [
+const topologyNodes = [
   {
     id: "producer",
-    position: { x: 40, y: 180 },
-    data: { label: "Telemetry Producer" },
-    sourcePosition: Position.Right,
-    type: "default",
+    position: { x: 40, y: 230 },
+    data: {
+      label: (
+        <div className="flow-node producer-node">
+          <div className="node-icon">
+            <Radio size={18} />
+          </div>
+          <div>
+            <strong>Telemetry Producer</strong>
+            <span>Truck Data Generator</span>
+          </div>
+        </div>
+      ),
+    },
+    style: {
+      background: "#111111",
+      color: "#ffffff",
+      border: "1px solid #333333",
+      borderRadius: "14px",
+      width: 220,
+      padding: 14,
+    },
   },
+
   {
     id: "kafka",
-    position: { x: 320, y: 180 },
-    data: { label: "Apache Kafka\ntruck-telemetry" },
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
-    type: "default",
+    position: { x: 330, y: 230 },
+    data: {
+      label: (
+        <div className="flow-node kafka-node">
+          <div className="node-icon">
+            <Database size={18} />
+          </div>
+          <div>
+            <strong>Apache Kafka</strong>
+            <span>truck-telemetry</span>
+          </div>
+        </div>
+      ),
+    },
+    style: {
+      background: "#151515",
+      color: "#ffffff",
+      border: "1px solid #444444",
+      borderRadius: "14px",
+      width: 220,
+      padding: 14,
+    },
   },
+
   {
-    id: "worker1",
-    position: { x: 650, y: 50 },
-    data: { label: "Worker 1\nPartition 0" },
-    targetPosition: Position.Left,
-    sourcePosition: Position.Right,
-    type: "default",
+    id: "partition0",
+    position: { x: 620, y: 70 },
+    data: {
+      label: (
+        <div className="partition-node">
+          <strong>Partition 0</strong>
+          <span>Worker 1</span>
+        </div>
+      ),
+    },
+    style: {
+      background: "#181818",
+      color: "#ffffff",
+      border: "1px solid #555555",
+      borderRadius: "12px",
+      width: 170,
+      padding: 14,
+    },
   },
+
   {
-    id: "worker2",
-    position: { x: 650, y: 180 },
-    data: { label: "Worker 2\nPartition 1" },
-    targetPosition: Position.Left,
-    sourcePosition: Position.Right,
-    type: "default",
+    id: "partition1",
+    position: { x: 620, y: 220 },
+    data: {
+      label: (
+        <div className="partition-node">
+          <strong>Partition 1</strong>
+          <span>Worker 2</span>
+        </div>
+      ),
+    },
+    style: {
+      background: "#181818",
+      color: "#ffffff",
+      border: "1px solid #555555",
+      borderRadius: "12px",
+      width: 170,
+      padding: 14,
+    },
   },
+
   {
-    id: "worker3",
-    position: { x: 650, y: 310 },
-    data: { label: "Worker 3\nPartition 2" },
-    targetPosition: Position.Left,
-    sourcePosition: Position.Right,
-    type: "default",
+    id: "partition2",
+    position: { x: 620, y: 370 },
+    data: {
+      label: (
+        <div className="partition-node">
+          <strong>Partition 2</strong>
+          <span>Worker 3</span>
+        </div>
+      ),
+    },
+    style: {
+      background: "#181818",
+      color: "#ffffff",
+      border: "1px solid #555555",
+      borderRadius: "12px",
+      width: 170,
+      padding: 14,
+    },
   },
+
   {
     id: "output",
-    position: { x: 950, y: 180 },
-    data: { label: "Alert Output" },
-    targetPosition: Position.Left,
-    type: "default",
+    position: { x: 920, y: 230 },
+    data: {
+      label: (
+        <div className="flow-node output-node">
+          <div className="node-icon">
+            <ShieldAlert size={18} />
+          </div>
+          <div>
+            <strong>Alert Output</strong>
+            <span>Overspeed Alerts</span>
+          </div>
+        </div>
+      ),
+    },
+    style: {
+      background: "#111111",
+      color: "#ffffff",
+      border: "1px solid #333333",
+      borderRadius: "14px",
+      width: 210,
+      padding: 14,
+    },
   },
 ];
 
-const initialEdges = [
+const topologyEdges = [
   {
-    id: "e1",
+    id: "producer-kafka",
     source: "producer",
     target: "kafka",
     animated: true,
+    markerEnd: { type: MarkerType.ArrowClosed },
   },
   {
-    id: "e2",
+    id: "kafka-p0",
     source: "kafka",
-    target: "worker1",
+    target: "partition0",
     animated: true,
+    markerEnd: { type: MarkerType.ArrowClosed },
   },
   {
-    id: "e3",
+    id: "kafka-p1",
     source: "kafka",
-    target: "worker2",
+    target: "partition1",
     animated: true,
+    markerEnd: { type: MarkerType.ArrowClosed },
   },
   {
-    id: "e4",
+    id: "kafka-p2",
     source: "kafka",
-    target: "worker3",
+    target: "partition2",
     animated: true,
+    markerEnd: { type: MarkerType.ArrowClosed },
   },
   {
-    id: "e5",
-    source: "worker1",
+    id: "p0-output",
+    source: "partition0",
     target: "output",
     animated: true,
+    markerEnd: { type: MarkerType.ArrowClosed },
   },
   {
-    id: "e6",
-    source: "worker2",
+    id: "p1-output",
+    source: "partition1",
     target: "output",
     animated: true,
+    markerEnd: { type: MarkerType.ArrowClosed },
   },
   {
-    id: "e7",
-    source: "worker3",
+    id: "p2-output",
+    source: "partition2",
     target: "output",
     animated: true,
+    markerEnd: { type: MarkerType.ArrowClosed },
   },
 ];
 
+function MetricCard({ icon: Icon, title, value, subtitle }) {
+  return (
+    <div className="metric-card">
+      <div className="metric-icon">
+        <Icon size={19} />
+      </div>
+
+      <div>
+        <p>{title}</p>
+        <h2>{value}</h2>
+        <span>{subtitle}</span>
+      </div>
+    </div>
+  );
+}
+
+function WorkerCard({ worker, partition, status }) {
+  return (
+    <div className="worker-card">
+      <div className="worker-left">
+        <div className="worker-icon">
+          <Server size={18} />
+        </div>
+
+        <div>
+          <strong>{worker}</strong>
+          <span>Kafka {partition}</span>
+        </div>
+      </div>
+
+      <div className="worker-status">
+        <span className="status-dot"></span>
+        {status}
+      </div>
+    </div>
+  );
+}
+
 function App() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-
-  const [activeSection, setActiveSection] = useState("Overview");
-
-  const onConnect = (params) =>
-    setEdges((currentEdges) => addEdge(params, currentEdges));
-
-  const navigation = [
-    {
-      name: "Overview",
-      icon: LayoutDashboard,
-    },
-    {
-      name: "Topology",
-      icon: Radio,
-    },
-    {
-      name: "Workers",
-      icon: Server,
-    },
-    {
-      name: "Metrics",
-      icon: BarChart3,
-    },
-    {
-      name: "Alerts",
-      icon: AlertTriangle,
-    },
-  ];
+  const [activePage, setActivePage] = useState("Overview");
 
   return (
-    <div className="app-shell">
+    <div className="app">
       {/* SIDEBAR */}
+
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-icon">
-            <Zap size={21} />
+          <div className="brand-logo">
+            <Activity size={20} />
           </div>
 
           <div>
-            <h1>STREAMFORGE</h1>
-            <span>Telemetry Platform</span>
+            <h2>STREAMFORGE</h2>
+            <span>TELEMETRY PLATFORM</span>
           </div>
         </div>
 
-        <div className="sidebar-label">COMMAND CENTER</div>
-
         <nav>
-          {navigation.map((item) => {
-            const Icon = item.icon;
+          <p className="nav-title">COMMAND CENTER</p>
 
-            return (
-              <button
-                key={item.name}
-                className={`nav-item ${
-                  activeSection === item.name ? "active" : ""
-                }`}
-                onClick={() => setActiveSection(item.name)}
-              >
-                <Icon size={18} />
-                <span>{item.name}</span>
-              </button>
-            );
-          })}
+          {[
+            [LayoutDashboard, "Overview"],
+            [Activity, "Topology"],
+            [Server, "Workers"],
+            [BarChart3, "Metrics"],
+            [AlertTriangle, "Alerts"],
+            [Settings, "Settings"],
+          ].map(([Icon, label]) => (
+            <button
+              key={label}
+              className={activePage === label ? "nav-item active" : "nav-item"}
+              onClick={() => setActivePage(label)}
+            >
+              <Icon size={18} />
+              {label}
+            </button>
+          ))}
         </nav>
 
         <div className="sidebar-bottom">
-          <button className="nav-item">
-            <Settings size={18} />
-            <span>Settings</span>
-          </button>
-
-          <div className="system-mini">
-            <div className="live-dot"></div>
-
+          <div className="connection-status">
+            <span className="status-dot"></span>
             <div>
-              <strong>System Online</strong>
-              <span>All services operational</span>
+              <strong>Cluster Online</strong>
+              <span>localhost:9092</span>
             </div>
           </div>
         </div>
       </aside>
 
-      {/* MAIN CONTENT */}
-      <main className="main-content">
-        {/* HEADER */}
+      {/* MAIN */}
+
+      <main className="main">
         <header className="topbar">
           <div>
-            <div className="breadcrumb">
-              STREAMFORGE / {activeSection.toUpperCase()}
-            </div>
-
-            <h2>Real-Time Telemetry Command Center</h2>
-
-            <p>
-              Monitor streaming pipelines, workers and system performance.
-            </p>
+            <p className="eyebrow">REAL-TIME TELEMETRY</p>
+            <h1>{activePage}</h1>
           </div>
 
-          <div className="header-status">
-            <div className="status-indicator">
-              <span></span>
-              LIVE
-            </div>
-
-            <div className="environment">
-              <Database size={16} />
-              LOCAL CLUSTER
-            </div>
+          <div className="live-status">
+            <span className="status-dot"></span>
+            LIVE
           </div>
         </header>
 
         {/* METRICS */}
+
         <section className="metrics-grid">
           <MetricCard
-            icon={<Activity size={20} />}
-            title="EVENTS / SEC"
+            icon={Gauge}
+            title="Events / sec"
             value="42.8"
-            suffix="events/s"
-            trend="+8.4%"
+            subtitle="Current throughput"
           />
 
           <MetricCard
-            icon={<Clock3 size={20} />}
-            title="PROCESSING LAG"
-            value="28"
-            suffix="ms"
-            trend="-12.6%"
+            icon={Clock3}
+            title="Processing Lag"
+            value="28 ms"
+            subtitle="Average latency"
           />
 
           <MetricCard
-            icon={<Server size={20} />}
-            title="WORKERS"
+            icon={Wifi}
+            title="Workers"
             value="3 / 3"
-            suffix="healthy"
-            trend="100%"
+            subtitle="Healthy workers"
           />
 
           <MetricCard
-            icon={<AlertTriangle size={20} />}
-            title="ACTIVE ALERTS"
+            icon={AlertTriangle}
+            title="Active Alerts"
             value="02"
-            suffix="alerts"
-            trend="LIVE"
+            subtitle="Overspeed events"
           />
         </section>
 
-        {/* TOPOLOGY + WORKERS */}
-        <section className="dashboard-grid">
-          {/* TOPOLOGY */}
-          <div className="panel topology-panel">
-            <div className="panel-header">
-              <div>
-                <div className="panel-title">
-                  <Radio size={17} />
-                  PIPELINE TOPOLOGY
-                </div>
+        {/* TOPOLOGY */}
 
-                <span className="panel-subtitle">
-                  Real-time stream processing graph
-                </span>
-              </div>
-
-              <div className="panel-badge">
-                <span></span>
-                STREAMING
-              </div>
+        <section className="panel topology-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">SYSTEM ARCHITECTURE</p>
+              <h2>Live Pipeline Topology</h2>
             </div>
 
-            <div className="flow-container">
-              <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                onConnect={onConnect}
-                fitView
-                proOptions={{ hideAttribution: true }}
-              >
-                <Background gap={22} size={1} />
-                <Controls />
-                <MiniMap />
-              </ReactFlow>
+            <div className="topology-badge">
+              <span className="status-dot"></span>
+              STREAMING
             </div>
           </div>
 
-          {/* WORKER HEALTH */}
-          <div className="panel worker-panel">
+          <div className="flow-container">
+            <ReactFlow
+              nodes={topologyNodes}
+              edges={topologyEdges}
+              fitView
+              proOptions={{ hideAttribution: true }}
+            >
+              <Background gap={24} size={1} />
+              <Controls />
+              <MiniMap />
+            </ReactFlow>
+          </div>
+        </section>
+
+        {/* WORKERS + PERFORMANCE */}
+
+        <section className="lower-grid">
+          <div className="panel">
             <div className="panel-header">
               <div>
-                <div className="panel-title">
-                  <Server size={17} />
-                  WORKER HEALTH
-                </div>
-
-                <span className="panel-subtitle">
-                  Processing node status
-                </span>
+                <p className="eyebrow">WORKER MONITORING</p>
+                <h2>Worker Health</h2>
               </div>
+
+              <span className="healthy-label">3 HEALTHY</span>
             </div>
 
             <div className="worker-list">
-              <Worker
-                name="Worker 1"
+              <WorkerCard
+                worker="Worker 1"
                 partition="Partition 0"
-                events="14.2"
+                status="RUNNING"
               />
 
-              <Worker
-                name="Worker 2"
+              <WorkerCard
+                worker="Worker 2"
                 partition="Partition 1"
-                events="13.7"
+                status="RUNNING"
               />
 
-              <Worker
-                name="Worker 3"
+              <WorkerCard
+                worker="Worker 3"
                 partition="Partition 2"
-                events="14.9"
+                status="RUNNING"
               />
             </div>
+          </div>
 
-            <div className="worker-footer">
-              <ShieldCheck size={16} />
-              All workers operational
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">STREAM PERFORMANCE</p>
+                <h2>Pipeline Metrics</h2>
+              </div>
+            </div>
+
+            <div className="performance-list">
+              <div>
+                <span>Throughput</span>
+                <strong>42.8 events/sec</strong>
+              </div>
+
+              <div>
+                <span>Processing Lag</span>
+                <strong>28 ms</strong>
+              </div>
+
+              <div>
+                <span>Partitions</span>
+                <strong>3 Active</strong>
+              </div>
+
+              <div>
+                <span>Messages Processed</span>
+                <strong>18,420</strong>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* PERFORMANCE + ALERTS */}
-        <section className="lower-grid">
-          {/* STREAM PERFORMANCE */}
-          <div className="panel stream-panel">
-            <div className="panel-header">
-              <div>
-                <div className="panel-title">
-                  <Gauge size={17} />
-                  STREAM PERFORMANCE
-                </div>
+        {/* ALERTS */}
 
-                <span className="panel-subtitle">
-                  Current processing activity
-                </span>
-              </div>
+        <section className="panel alerts-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">EVENT MONITORING</p>
+              <h2>Recent Alerts</h2>
             </div>
 
-            <div className="performance-row">
-              <PerformanceMetric
-                label="Throughput"
-                value="42.8"
-                unit="events/s"
-              />
-
-              <PerformanceMetric
-                label="Average Lag"
-                value="28"
-                unit="ms"
-              />
-
-              <PerformanceMetric
-                label="Kafka Partitions"
-                value="3"
-                unit="active"
-              />
-
-              <PerformanceMetric
-                label="Messages"
-                value="12.4K"
-                unit="processed"
-              />
-            </div>
+            <span className="alert-count">02 EVENTS</span>
           </div>
 
-          {/* RECENT ALERTS */}
-          <div className="panel alert-panel">
-            <div className="panel-header">
-              <div>
-                <div className="panel-title">
-                  <AlertTriangle size={17} />
-                  RECENT ALERTS
-                </div>
-
-                <span className="panel-subtitle">
-                  Latest stream events
-                </span>
-              </div>
-
-              <span className="alert-count">02</span>
+          <div className="alert-row">
+            <div className="alert-icon">
+              <AlertTriangle size={18} />
             </div>
 
-            <div className="alert-item">
-              <div className="alert-icon">
-                <AlertTriangle size={16} />
-              </div>
-
-              <div>
-                <strong>Overspeed detected</strong>
-                <span>TRUCK-007 · 94.7 km/h</span>
-              </div>
-
-              <time>12s</time>
+            <div className="alert-content">
+              <strong>OVERSPEED</strong>
+              <span>TRUCK-007 exceeded 80 km/h</span>
             </div>
 
-            <div className="alert-item">
-              <div className="alert-icon">
-                <AlertTriangle size={16} />
-              </div>
+            <span className="alert-time">2 min ago</span>
+          </div>
 
-              <div>
-                <strong>Overspeed detected</strong>
-                <span>TRUCK-003 · 87.2 km/h</span>
-              </div>
-
-              <time>41s</time>
+          <div className="alert-row">
+            <div className="alert-icon">
+              <AlertTriangle size={18} />
             </div>
+
+            <div className="alert-content">
+              <strong>OVERSPEED</strong>
+              <span>TRUCK-003 exceeded 80 km/h</span>
+            </div>
+
+            <span className="alert-time">5 min ago</span>
           </div>
         </section>
       </main>
-    </div>
-  );
-}
-
-function MetricCard({ icon, title, value, suffix, trend }) {
-  return (
-    <div className="metric-card">
-      <div className="metric-top">
-        <div className="metric-icon">{icon}</div>
-
-        <span className="metric-trend">{trend}</span>
-      </div>
-
-      <div className="metric-title">{title}</div>
-
-      <div className="metric-value">
-        {value}
-        <span>{suffix}</span>
-      </div>
-    </div>
-  );
-}
-
-function Worker({ name, partition, events }) {
-  return (
-    <div className="worker-card">
-      <div className="worker-status">
-        <span></span>
-      </div>
-
-      <div className="worker-info">
-        <strong>{name}</strong>
-        <span>{partition}</span>
-      </div>
-
-      <div className="worker-events">
-        <strong>{events}</strong>
-        <span>events/s</span>
-      </div>
-    </div>
-  );
-}
-
-function PerformanceMetric({ label, value, unit }) {
-  return (
-    <div className="performance-metric">
-      <span>{label}</span>
-
-      <strong>
-        {value}
-        <small>{unit}</small>
-      </strong>
     </div>
   );
 }
