@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import axios from "axios";
+
 import {
   Activity,
   AlertTriangle,
   BarChart3,
+  Boxes,
   Clock3,
-  Database,
   Gauge,
   LayoutDashboard,
   Radio,
@@ -12,6 +14,7 @@ import {
   Settings,
   ShieldAlert,
   Wifi,
+  Zap,
 } from "lucide-react";
 
 import {
@@ -25,42 +28,37 @@ import {
 import "@xyflow/react/dist/style.css";
 import "./App.css";
 
-const topologyNodes = [
+const API = "http://127.0.0.1:8000";
+
+
+// ============================================================
+// TOPOLOGY NODES
+// ============================================================
+
+const nodes = [
   {
     id: "producer",
-    position: { x: 40, y: 230 },
+    position: { x: 40, y: 155 },
     data: {
       label: (
-        <div className="flow-node producer-node">
-          <div className="node-icon">
-            <Radio size={18} />
-          </div>
+        <div className="flow-node">
+          <Radio size={17} />
           <div>
-            <strong>Telemetry Producer</strong>
-            <span>Truck Data Generator</span>
+            <strong>Truck Fleet</strong>
+            <span>Telemetry Producer</span>
           </div>
         </div>
       ),
-    },
-    style: {
-      background: "#111111",
-      color: "#ffffff",
-      border: "1px solid #333333",
-      borderRadius: "14px",
-      width: 220,
-      padding: 14,
     },
   },
 
   {
     id: "kafka",
-    position: { x: 330, y: 230 },
+    position: { x: 300, y: 155 },
     data: {
       label: (
-        <div className="flow-node kafka-node">
-          <div className="node-icon">
-            <Database size={18} />
-          </div>
+        <div className="flow-node">
+          <Boxes size={17} />
           <div>
             <strong>Apache Kafka</strong>
             <span>truck-telemetry</span>
@@ -68,431 +66,1039 @@ const topologyNodes = [
         </div>
       ),
     },
-    style: {
-      background: "#151515",
-      color: "#ffffff",
-      border: "1px solid #444444",
-      borderRadius: "14px",
-      width: 220,
-      padding: 14,
-    },
   },
 
   {
-    id: "partition0",
-    position: { x: 620, y: 70 },
+    id: "worker1",
+    position: { x: 570, y: 45 },
     data: {
       label: (
-        <div className="partition-node">
-          <strong>Partition 0</strong>
-          <span>Worker 1</span>
-        </div>
-      ),
-    },
-    style: {
-      background: "#181818",
-      color: "#ffffff",
-      border: "1px solid #555555",
-      borderRadius: "12px",
-      width: 170,
-      padding: 14,
-    },
-  },
-
-  {
-    id: "partition1",
-    position: { x: 620, y: 220 },
-    data: {
-      label: (
-        <div className="partition-node">
-          <strong>Partition 1</strong>
-          <span>Worker 2</span>
-        </div>
-      ),
-    },
-    style: {
-      background: "#181818",
-      color: "#ffffff",
-      border: "1px solid #555555",
-      borderRadius: "12px",
-      width: 170,
-      padding: 14,
-    },
-  },
-
-  {
-    id: "partition2",
-    position: { x: 620, y: 370 },
-    data: {
-      label: (
-        <div className="partition-node">
-          <strong>Partition 2</strong>
-          <span>Worker 3</span>
-        </div>
-      ),
-    },
-    style: {
-      background: "#181818",
-      color: "#ffffff",
-      border: "1px solid #555555",
-      borderRadius: "12px",
-      width: 170,
-      padding: 14,
-    },
-  },
-
-  {
-    id: "output",
-    position: { x: 920, y: 230 },
-    data: {
-      label: (
-        <div className="flow-node output-node">
-          <div className="node-icon">
-            <ShieldAlert size={18} />
-          </div>
+        <div className="flow-node">
+          <Server size={17} />
           <div>
-            <strong>Alert Output</strong>
-            <span>Overspeed Alerts</span>
+            <strong>Worker 1</strong>
+            <span>Partition 0</span>
           </div>
         </div>
       ),
     },
-    style: {
-      background: "#111111",
-      color: "#ffffff",
-      border: "1px solid #333333",
-      borderRadius: "14px",
-      width: 210,
-      padding: 14,
+  },
+
+  {
+    id: "worker2",
+    position: { x: 570, y: 155 },
+    data: {
+      label: (
+        <div className="flow-node">
+          <Server size={17} />
+          <div>
+            <strong>Worker 2</strong>
+            <span>Partition 1</span>
+          </div>
+        </div>
+      ),
+    },
+  },
+
+  {
+    id: "worker3",
+    position: { x: 570, y: 265 },
+    data: {
+      label: (
+        <div className="flow-node">
+          <Server size={17} />
+          <div>
+            <strong>Worker 3</strong>
+            <span>Partition 2</span>
+          </div>
+        </div>
+      ),
+    },
+  },
+
+  {
+    id: "alerts",
+    position: { x: 850, y: 155 },
+    data: {
+      label: (
+        <div className="flow-node">
+          <ShieldAlert size={17} />
+          <div>
+            <strong>Alert Engine</strong>
+            <span>Overspeed Events</span>
+          </div>
+        </div>
+      ),
     },
   },
 ];
 
-const topologyEdges = [
+
+// ============================================================
+// TOPOLOGY EDGES
+// ============================================================
+
+const edges = [
   {
     id: "producer-kafka",
     source: "producer",
     target: "kafka",
     animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+    },
   },
+
   {
-    id: "kafka-p0",
+    id: "kafka-worker1",
     source: "kafka",
-    target: "partition0",
+    target: "worker1",
     animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+    },
   },
+
   {
-    id: "kafka-p1",
+    id: "kafka-worker2",
     source: "kafka",
-    target: "partition1",
+    target: "worker2",
     animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+    },
   },
+
   {
-    id: "kafka-p2",
+    id: "kafka-worker3",
     source: "kafka",
-    target: "partition2",
+    target: "worker3",
     animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+    },
   },
+
   {
-    id: "p0-output",
-    source: "partition0",
-    target: "output",
+    id: "worker1-alerts",
+    source: "worker1",
+    target: "alerts",
     animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+    },
   },
+
   {
-    id: "p1-output",
-    source: "partition1",
-    target: "output",
+    id: "worker2-alerts",
+    source: "worker2",
+    target: "alerts",
     animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+    },
   },
+
   {
-    id: "p2-output",
-    source: "partition2",
-    target: "output",
+    id: "worker3-alerts",
+    source: "worker3",
+    target: "alerts",
     animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+    },
   },
 ];
 
-function MetricCard({ icon: Icon, title, value, subtitle }) {
+
+// ============================================================
+// METRIC CARD
+// ============================================================
+
+function MetricCard({
+  icon,
+  label,
+  value,
+  unit,
+  description,
+}) {
   return (
     <div className="metric-card">
+
       <div className="metric-icon">
-        <Icon size={19} />
+        {icon}
       </div>
 
-      <div>
-        <p>{title}</p>
-        <h2>{value}</h2>
-        <span>{subtitle}</span>
+      <div className="metric-content">
+
+        <div className="metric-label">
+          {label}
+        </div>
+
+        <div className="metric-value">
+          {value}
+
+          {unit && (
+            <span>{unit}</span>
+          )}
+        </div>
+
+        <div className="metric-description">
+          {description}
+        </div>
+
       </div>
+
     </div>
   );
 }
 
-function WorkerCard({ worker, partition, status }) {
+
+// ============================================================
+// WORKER CARD
+// ============================================================
+
+function WorkerCard({ worker }) {
+
+  const healthy =
+    worker.status === "RUNNING";
+
   return (
     <div className="worker-card">
-      <div className="worker-left">
-        <div className="worker-icon">
-          <Server size={18} />
+
+      <div className="worker-header">
+
+        <div className="worker-symbol">
+          <Server size={17} />
+        </div>
+
+        <div className="worker-status">
+
+          <span
+            className={
+              healthy
+                ? "status-dot green"
+                : "status-dot red"
+            }
+          />
+
+          {worker.status}
+
+        </div>
+
+      </div>
+
+      <div className="worker-name">
+        {worker.worker_id}
+      </div>
+
+      <div className="worker-details">
+
+        <div>
+          <span>Partition</span>
+          <strong>
+            #{worker.partition}
+          </strong>
         </div>
 
         <div>
-          <strong>{worker}</strong>
-          <span>Kafka {partition}</span>
+          <span>Health</span>
+
+          <strong
+            className={
+              healthy
+                ? "healthy-text"
+                : "failed-text"
+            }
+          >
+            {healthy
+              ? "Healthy"
+              : "Failed"}
+          </strong>
+
         </div>
+
       </div>
 
-      <div className="worker-status">
-        <span className="status-dot"></span>
-        {status}
-      </div>
     </div>
   );
 }
+
+
+// ============================================================
+// MAIN APP
+// ============================================================
 
 function App() {
-  const [activePage, setActivePage] = useState("Overview");
+
+  const [status, setStatus] =
+    useState(null);
+
+  const [metrics, setMetrics] =
+    useState(null);
+
+  const [workers, setWorkers] =
+    useState([]);
+
+  const [alerts, setAlerts] =
+    useState([]);
+
+  const [apiOnline, setApiOnline] =
+    useState(false);
+
+  const [activePage, setActivePage] =
+    useState("Overview");
+
+
+  // ==========================================================
+  // FETCH DASHBOARD DATA
+  // ==========================================================
+
+  const fetchDashboardData =
+    async () => {
+
+      try {
+
+        const [
+          statusResponse,
+          metricsResponse,
+          workersResponse,
+          alertsResponse,
+        ] = await Promise.all([
+
+          axios.get(
+            `${API}/api/status`
+          ),
+
+          axios.get(
+            `${API}/api/metrics`
+          ),
+
+          axios.get(
+            `${API}/api/workers`
+          ),
+
+          axios.get(
+            `${API}/api/alerts`
+          ),
+
+        ]);
+
+
+        setStatus(
+          statusResponse.data
+        );
+
+        setMetrics(
+          metricsResponse.data
+        );
+
+        setWorkers(
+          workersResponse.data.workers || []
+        );
+
+        setAlerts(
+          alertsResponse.data.alerts || []
+        );
+
+        setApiOnline(true);
+
+      } catch (error) {
+
+        console.error(
+          "StreamForge API Error:",
+          error
+        );
+
+        setApiOnline(false);
+      }
+    };
+
+
+  // ==========================================================
+  // AUTO REFRESH
+  // ==========================================================
+
+  useEffect(() => {
+
+    fetchDashboardData();
+
+    const interval =
+      setInterval(
+        fetchDashboardData,
+        5000
+      );
+
+    return () =>
+      clearInterval(interval);
+
+  }, []);
+
+
+  // ==========================================================
+  // HEALTHY WORKERS
+  // ==========================================================
+
+  const healthyWorkers =
+    workers.filter(
+      (worker) =>
+        worker.status === "RUNNING"
+    ).length;
+
+
+  // ==========================================================
+  // UI
+  // ==========================================================
 
   return (
+
     <div className="app">
-      {/* SIDEBAR */}
+
+      {/* ======================================================
+          SIDEBAR
+      ====================================================== */}
 
       <aside className="sidebar">
+
         <div className="brand">
+
           <div className="brand-logo">
-            <Activity size={20} />
+            <Activity size={22} />
           </div>
 
-          <div>
-            <h2>STREAMFORGE</h2>
-            <span>TELEMETRY PLATFORM</span>
+          <div className="brand-name">
+            STREAM<span>FORGE</span>
           </div>
+
+          <div className="brand-subtitle">
+            REAL-TIME TELEMETRY
+          </div>
+
         </div>
 
-        <nav>
-          <p className="nav-title">COMMAND CENTER</p>
+
+        <div className="nav-section-title">
+          COMMAND CENTER
+        </div>
+
+
+        <nav className="nav">
 
           {[
-            [LayoutDashboard, "Overview"],
-            [Activity, "Topology"],
-            [Server, "Workers"],
-            [BarChart3, "Metrics"],
-            [AlertTriangle, "Alerts"],
-            [Settings, "Settings"],
-          ].map(([Icon, label]) => (
+            {
+              name: "Overview",
+              icon:
+                <LayoutDashboard
+                  size={18}
+                />,
+            },
+
+            {
+              name: "Topology",
+              icon:
+                <Activity
+                  size={18}
+                />,
+            },
+
+            {
+              name: "Workers",
+              icon:
+                <Server
+                  size={18}
+                />,
+            },
+
+            {
+              name: "Metrics",
+              icon:
+                <BarChart3
+                  size={18}
+                />,
+            },
+
+            {
+              name: "Alerts",
+              icon:
+                <AlertTriangle
+                  size={18}
+                />,
+            },
+
+            {
+              name: "Settings",
+              icon:
+                <Settings
+                  size={18}
+                />,
+            },
+          ].map((item) => (
+
             <button
-              key={label}
-              className={activePage === label ? "nav-item active" : "nav-item"}
-              onClick={() => setActivePage(label)}
+              key={item.name}
+              className={
+                activePage === item.name
+                  ? "nav-item active"
+                  : "nav-item"
+              }
+              onClick={() =>
+                setActivePage(
+                  item.name
+                )
+              }
             >
-              <Icon size={18} />
-              {label}
+
+              {item.icon}
+
+              <span>
+                {item.name}
+              </span>
+
             </button>
+
           ))}
+
         </nav>
 
-        <div className="sidebar-bottom">
-          <div className="connection-status">
-            <span className="status-dot"></span>
-            <div>
-              <strong>Cluster Online</strong>
-              <span>localhost:9092</span>
-            </div>
+
+        {/* API CONNECTION */}
+
+        <div className="connection-card">
+
+          <div className="connection-header">
+
+            <span>
+              API CONNECTION
+            </span>
+
+            <span
+              className={
+                apiOnline
+                  ? "connection-badge online"
+                  : "connection-badge offline"
+              }
+            >
+              {apiOnline
+                ? "ONLINE"
+                : "OFFLINE"}
+            </span>
+
           </div>
+
+
+          <div className="connection-main">
+
+            <span
+              className={
+                apiOnline
+                  ? "status-dot green"
+                  : "status-dot red"
+              }
+            />
+
+            <strong>
+              {apiOnline
+                ? "Live System"
+                : "Disconnected"}
+            </strong>
+
+          </div>
+
+
+          <div className="connection-host">
+            localhost:8000
+          </div>
+
         </div>
+
       </aside>
 
-      {/* MAIN */}
+
+      {/* ======================================================
+          MAIN CONTENT
+      ====================================================== */}
 
       <main className="main">
+
+        {/* TOP HEADER */}
+
         <header className="topbar">
+
           <div>
-            <p className="eyebrow">REAL-TIME TELEMETRY</p>
-            <h1>{activePage}</h1>
+
+            <div className="eyebrow">
+              REAL-TIME TELEMETRY
+            </div>
+
+            <h1>
+              {activePage}
+            </h1>
+
+            <p className="page-description">
+              Live insights from your
+              distributed streaming pipeline
+            </p>
+
           </div>
 
-          <div className="live-status">
-            <span className="status-dot"></span>
-            LIVE
+
+          <div className="live-pill">
+
+            <span className="live-dot" />
+
+            {apiOnline
+              ? "SYSTEM LIVE"
+              : "API OFFLINE"}
+
           </div>
+
         </header>
 
-        {/* METRICS */}
+
+        {/* ==================================================
+            KPI CARDS
+        ================================================== */}
 
         <section className="metrics-grid">
-          <MetricCard
-            icon={Gauge}
-            title="Events / sec"
-            value="42.8"
-            subtitle="Current throughput"
-          />
 
           <MetricCard
-            icon={Clock3}
-            title="Processing Lag"
-            value="28 ms"
-            subtitle="Average latency"
+            icon={<Gauge size={20} />}
+            label="Events / sec"
+            value={
+              metrics?.events_per_second ??
+              "--"
+            }
+            description="Current throughput"
           />
 
-          <MetricCard
-            icon={Wifi}
-            title="Workers"
-            value="3 / 3"
-            subtitle="Healthy workers"
-          />
 
           <MetricCard
-            icon={AlertTriangle}
-            title="Active Alerts"
-            value="02"
-            subtitle="Overspeed events"
+            icon={<Clock3 size={20} />}
+            label="Processing Lag"
+            value={
+              metrics?.processing_lag_ms ??
+              "--"
+            }
+            unit=" ms"
+            description="Average latency"
           />
+
+
+          <MetricCard
+            icon={<Wifi size={20} />}
+            label="Workers"
+            value={`${healthyWorkers} / ${
+              workers.length || 3
+            }`}
+            description="Healthy workers"
+          />
+
+
+          <MetricCard
+            icon={<ShieldAlert size={20} />}
+            label="Active Alerts"
+            value={
+              metrics?.active_alerts ??
+              "--"
+            }
+            description="Overspeed events"
+          />
+
         </section>
 
-        {/* TOPOLOGY */}
+
+        {/* ==================================================
+            TOPOLOGY
+        ================================================== */}
 
         <section className="panel topology-panel">
+
           <div className="panel-header">
+
             <div>
-              <p className="eyebrow">SYSTEM ARCHITECTURE</p>
-              <h2>Live Pipeline Topology</h2>
+
+              <div className="panel-eyebrow">
+                SYSTEM ARCHITECTURE
+              </div>
+
+              <h2>
+                Live Pipeline Topology
+              </h2>
+
             </div>
 
-            <div className="topology-badge">
-              <span className="status-dot"></span>
+
+            <div className="streaming-indicator">
+
+              <span />
+
               STREAMING
+
             </div>
+
           </div>
+
 
           <div className="flow-container">
+
             <ReactFlow
-              nodes={topologyNodes}
-              edges={topologyEdges}
+              nodes={nodes}
+              edges={edges}
               fitView
-              proOptions={{ hideAttribution: true }}
+              fitViewOptions={{
+                padding: 0.2,
+              }}
+              nodesDraggable={false}
+              nodesConnectable={false}
+              elementsSelectable={false}
+              zoomOnScroll={false}
             >
-              <Background gap={24} size={1} />
+
+              <Background
+                gap={22}
+                size={1}
+              />
+
               <Controls />
+
               <MiniMap />
+
             </ReactFlow>
+
           </div>
+
         </section>
 
-        {/* WORKERS + PERFORMANCE */}
 
-        <section className="lower-grid">
+        {/* ==================================================
+            WORKERS + PERFORMANCE
+        ================================================== */}
+
+        <section className="two-column">
+
+
+          {/* WORKER HEALTH */}
+
           <div className="panel">
+
             <div className="panel-header">
+
               <div>
-                <p className="eyebrow">WORKER MONITORING</p>
-                <h2>Worker Health</h2>
+
+                <div className="panel-eyebrow">
+                  WORKER MONITORING
+                </div>
+
+                <h2>
+                  Worker Health
+                </h2>
+
               </div>
 
-              <span className="healthy-label">3 HEALTHY</span>
+
+              <div className="health-summary">
+
+                <span className="status-dot green" />
+
+                {healthyWorkers} HEALTHY
+
+              </div>
+
             </div>
 
-            <div className="worker-list">
-              <WorkerCard
-                worker="Worker 1"
-                partition="Partition 0"
-                status="RUNNING"
-              />
 
-              <WorkerCard
-                worker="Worker 2"
-                partition="Partition 1"
-                status="RUNNING"
-              />
+            <div className="workers-grid">
 
-              <WorkerCard
-                worker="Worker 3"
-                partition="Partition 2"
-                status="RUNNING"
-              />
+              {workers.length > 0 ? (
+
+                workers.map(
+                  (worker) => (
+
+                    <WorkerCard
+                      key={
+                        worker.worker_id
+                      }
+                      worker={worker}
+                    />
+
+                  )
+                )
+
+              ) : (
+
+                <div className="empty-state">
+                  No worker data available
+                </div>
+
+              )}
+
             </div>
+
           </div>
 
+
+          {/* PERFORMANCE */}
+
           <div className="panel">
+
             <div className="panel-header">
+
               <div>
-                <p className="eyebrow">STREAM PERFORMANCE</p>
-                <h2>Pipeline Metrics</h2>
+
+                <div className="panel-eyebrow">
+                  STREAM PERFORMANCE
+                </div>
+
+                <h2>
+                  Pipeline Metrics
+                </h2>
+
               </div>
+
+              <Zap
+                size={19}
+                className="panel-icon"
+              />
+
             </div>
+
 
             <div className="performance-list">
-              <div>
-                <span>Throughput</span>
-                <strong>42.8 events/sec</strong>
+
+              <div className="performance-item">
+
+                <div>
+                  <span>
+                    Throughput
+                  </span>
+
+                  <small>
+                    Events processed per second
+                  </small>
+                </div>
+
+                <strong>
+                  {
+                    metrics?.events_per_second ??
+                    "--"
+                  }
+
+                  <small>
+                    {" "}evt/s
+                  </small>
+                </strong>
+
               </div>
 
-              <div>
-                <span>Processing Lag</span>
-                <strong>28 ms</strong>
+
+              <div className="performance-item">
+
+                <div>
+                  <span>
+                    Processing Lag
+                  </span>
+
+                  <small>
+                    Average processing latency
+                  </small>
+                </div>
+
+                <strong>
+                  {
+                    metrics?.processing_lag_ms ??
+                    "--"
+                  }
+
+                  <small>
+                    {" "}ms
+                  </small>
+                </strong>
+
               </div>
 
-              <div>
-                <span>Partitions</span>
-                <strong>3 Active</strong>
+
+              <div className="performance-item">
+
+                <div>
+                  <span>
+                    Messages Processed
+                  </span>
+
+                  <small>
+                    Total events handled
+                  </small>
+                </div>
+
+                <strong>
+                  {
+                    metrics?.messages_processed
+                      ?.toLocaleString() ??
+                    "--"
+                  }
+                </strong>
+
               </div>
 
-              <div>
-                <span>Messages Processed</span>
-                <strong>18,420</strong>
+
+              <div className="performance-item">
+
+                <div>
+                  <span>
+                    Active Partitions
+                  </span>
+
+                  <small>
+                    Kafka partitions in use
+                  </small>
+                </div>
+
+                <strong>
+                  {
+                    metrics?.active_partitions ??
+                    "--"
+                  }
+                </strong>
+
               </div>
+
             </div>
+
           </div>
+
         </section>
 
-        {/* ALERTS */}
 
-        <section className="panel alerts-panel">
+        {/* ==================================================
+            ALERTS
+        ================================================== */}
+
+        <section className="panel alert-panel">
+
           <div className="panel-header">
+
             <div>
-              <p className="eyebrow">EVENT MONITORING</p>
-              <h2>Recent Alerts</h2>
+
+              <div className="panel-eyebrow">
+                EVENT MONITORING
+              </div>
+
+              <h2>
+                Recent Alerts
+              </h2>
+
             </div>
 
-            <span className="alert-count">02 EVENTS</span>
+
+            <div className="alert-count">
+              {alerts.length} EVENTS
+            </div>
+
           </div>
 
-          <div className="alert-row">
-            <div className="alert-icon">
-              <AlertTriangle size={18} />
+
+          {alerts.length > 0 ? (
+
+            <div className="alert-table">
+
+              <div className="alert-table-header">
+
+                <span>EVENT</span>
+
+                <span>TRUCK</span>
+
+                <span>SPEED</span>
+
+                <span>STATUS</span>
+
+              </div>
+
+
+              {alerts.map(
+                (alert, index) => (
+
+                  <div
+                    className="alert-row"
+                    key={index}
+                  >
+
+                    <div className="alert-event">
+
+                      <AlertTriangle
+                        size={16}
+                      />
+
+                      <strong>
+                        {alert.alert_type}
+                      </strong>
+
+                    </div>
+
+
+                    <span className="truck-id">
+                      {alert.truck_id}
+                    </span>
+
+
+                    <span className="speed-value">
+                      {alert.speed} km/h
+                    </span>
+
+
+                    <span className="alert-status">
+                      {alert.status}
+                    </span>
+
+                  </div>
+
+                )
+              )}
+
             </div>
 
-            <div className="alert-content">
-              <strong>OVERSPEED</strong>
-              <span>TRUCK-007 exceeded 80 km/h</span>
+          ) : (
+
+            <div className="empty-state">
+              No active alerts
             </div>
 
-            <span className="alert-time">2 min ago</span>
-          </div>
+          )}
 
-          <div className="alert-row">
-            <div className="alert-icon">
-              <AlertTriangle size={18} />
-            </div>
-
-            <div className="alert-content">
-              <strong>OVERSPEED</strong>
-              <span>TRUCK-003 exceeded 80 km/h</span>
-            </div>
-
-            <span className="alert-time">5 min ago</span>
-          </div>
         </section>
+
+
+        {/* ==================================================
+            FOOTER
+        ================================================== */}
+
+        <footer className="footer">
+
+          <span>
+            STREAMFORGE TELEMETRY PLATFORM
+          </span>
+
+          <span>
+            Kafka • FastAPI • React Flow
+          </span>
+
+          <span>
+
+            {status?.timestamp
+
+              ? `Last update: ${new Date(
+                  status.timestamp
+                ).toLocaleTimeString()}`
+
+              : "Waiting for API"}
+
+          </span>
+
+        </footer>
+
       </main>
+
     </div>
   );
 }
+
 
 export default App;
