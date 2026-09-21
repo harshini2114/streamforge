@@ -8,10 +8,14 @@ producer = KafkaProducer(
     value_serializer=lambda v: json.dumps(v).encode("utf-8")
 )
 
+print("🚚 StreamForge Telemetry Producer Started...")
+print("📡 Sending truck telemetry to Kafka...\n")
+
 while True:
     telemetry = {
         "truck_id": f"TRUCK-{random.randint(1, 10):03d}",
         "speed": round(random.uniform(20, 100), 2),
+        "temperature": round(random.uniform(25, 45), 2),
         "latitude": round(random.uniform(16.4, 17.0), 6),
         "longitude": round(random.uniform(80.0, 81.0), 6),
         "timestamp": time.time()

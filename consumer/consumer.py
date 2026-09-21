@@ -1,5 +1,6 @@
 import json
 from processor.alert_processor import process_alert
+from processor.stream_processor import process_stream_event
 
 from kafka import KafkaConsumer
 
@@ -37,7 +38,19 @@ for message in consumer:
         print(f"Truck ID : {telemetry['truck_id']}")
         print(f"Speed    : {telemetry['speed']} km/h")
 
+        # Existing overspeed processing
         process_alert(telemetry)
+
+        # Member 1 stream processing + window/state management
+        result = process_stream_event(telemetry)
+
+        if result:
+            print("\n========== 5-MINUTE WINDOW ==========")
+            print(f"Truck ID            : {result['truck_id']}")
+            print(f"Events in Window    : {result['event_count']}")
+            print(f"Average Temperature : {result['average_temperature']} °C")
+            print(f"Latest Speed        : {result['latest_speed']} km/h")
+            print("======================================")
 
         print(f"Latitude : {telemetry['latitude']}")
         print(f"Longitude: {telemetry['longitude']}")
